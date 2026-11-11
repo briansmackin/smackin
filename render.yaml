@@ -1,0 +1,44 @@
+# Single web service. The connector is one process with a file lock on the
+# token store, so it stays at one instance and does not autoscale.
+services:
+  - type: web
+    name: smackin-qbo-connector
+    runtime: node
+    plan: starter
+    region: ohio
+    branch: main
+    buildCommand: "true"
+    startCommand: npm start
+    healthCheckPath: /health
+    numInstances: 1
+    disk:
+      name: qbo-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: QBO_ENV
+        value: sandbox
+      - key: DATA_DIR
+        value: /var/data
+      - key: HOST
+        value: 0.0.0.0
+      - key: POLICIES_APPROVED
+        value: "false"
+      - key: NODE_VERSION
+        value: "22"
+      - key: QBO_CLIENT_ID
+        sync: false
+      - key: QBO_CLIENT_SECRET
+        sync: false
+      - key: QBO_ALLOWED_REALM_ID
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY_BASE64
+        sync: false
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD_SCRYPT
+        sync: false
+      - key: ERP_READ_KEY
+        sync: false
+      - key: PUBLIC_ORIGIN
+        sync: false
