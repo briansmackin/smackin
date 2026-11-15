@@ -187,7 +187,7 @@ export async function createConnector(config,{fetchImpl=fetch,now=Date.now}={}){
         if(path.endsWith('connect') && !path.endsWith('disconnect')){
           const state=random();s.state={hash:hash(state),exp:now()+10*60000};
           const next=new URL(AUTHORIZE);next.search=new URLSearchParams({client_id:config.clientId,response_type:'code',scope:'com.intuit.quickbooks.accounting',redirect_uri:callback,state}).toString();
-          return redirect(res,next.toString());
+          return send(res,200,page("Authorize QuickBooks",`<p>Continue to Intuit to authorize SMACKIN.</p><p><a class="button" href="${htmlEscape(next.toString())}">Continue to Intuit</a></p>`));
         }
         await serial(async()=>{
           const t=await load();if(!t)return;
