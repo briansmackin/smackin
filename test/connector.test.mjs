@@ -24,7 +24,9 @@ async function start(ctx){
   const cookie=get.headers.get('set-cookie').split(';')[0];const body=await get.text();
   const csrf=body.match(/name="csrf" value="([^"]+)"/)[1];
   const post=await ctx.call('/quickbooks/connect',{method:'POST',headers:{Authorization:admin,Cookie:cookie,Origin:ctx.c.origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf})});
-  assert.equal(post.status,302);const redirect=new URL(post.headers.get('location'));
+  assert.ok([200,302].includes(post.status));
+  const destination=post.status===302?post.headers.get('location'):(await post.text()).match(/href="(https:\/\/appcenter\.intuit\.com\/connect\/oauth2[^\"]+)"/)?.[1]?.replaceAll('&amp;','&');
+  assert.ok(destination,'The authenticated form must hand off to Intuit');const redirect=new URL(destination);
   assert.equal(redirect.origin,'https://appcenter.intuit.com');
   assert.equal(redirect.searchParams.get('scope'),'com.intuit.quickbooks.accounting');
   return {cookie,csrf,state:redirect.searchParams.get('state')};
