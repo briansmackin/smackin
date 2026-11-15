@@ -93,7 +93,7 @@ export async function createConnector(config,{fetchImpl=fetch,now=Date.now}={}){
   }
   function headers(res,type='text/html; charset=utf-8'){
     res.setHeader('Content-Type',type);res.setHeader('Cache-Control','no-store');
-    res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('Referrer-Policy','strict-origin');res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Frame-Options','DENY');
     res.setHeader('Content-Security-Policy',"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
     if(config.secure) res.setHeader('Strict-Transport-Security','max-age=31536000');
