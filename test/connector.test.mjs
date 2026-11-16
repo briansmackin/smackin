@@ -123,3 +123,27 @@ test('failed revoke preserves tokens for an explicit retry',async t=>{
 test('a second process cannot open the same token store',async t=>{
   const ctx=await setup(t,token);await assert.rejects(createConnector(ctx.c),{code:'EEXIST'});
 });
+
+test('official aging summaries require explicit as-of date and remain GET-only',async t=>{
+  const ctx=await setup(t,(url,opts)=>{
+    if(url.includes('/tokens/bearer'))return token();
+    const u=new URL(url);
+    assert.equal(opts.method,'GET');
+    assert.ok(['/v3/company/123456/reports/AgedReceivables','/v3/company/123456/reports/AgedPayables'].includes(u.pathname));
+    assert.deepEqual(Object.fromEntries(u.searchParams),{report_date:'2026-09-30',aging_method:'Report_Date',aging_period:'30',num_periods:'4'});
+    return new Response(JSON.stringify({Header:{ReportName:u.pathname.split('/').at(-1)}}));
+  });
+  await callback(ctx,await start(ctx));
+  for(const report of ['AgedReceivables','AgedPayables']){
+    const path=`/api/reports/${report}`;
+    const before=ctx.calls.length;
+    assert.equal((await ctx.call(path+'?report_date=2026-09-30')).status,401);
+    for(const query of ['', '?report_date=2026-02-30','?report_date=2026-09-30&end_date=2026-09-30','?report_date=2026-09-30&report_date=2026-08-31','?report_date=2026-09-30&aging_method=Current']){
+      assert.equal((await ctx.call(path+query,{headers:readHeaders})).status,400);
+    }
+    assert.equal((await ctx.call(path+'?report_date=2026-09-30',{method:'POST',headers:readHeaders})).status,405);
+    assert.equal(ctx.calls.length,before);
+    const response=await ctx.call(path+'?report_date=2026-09-30',{headers:readHeaders});
+    assert.equal(response.status,200);assert.equal((await response.json()).Header.ReportName,report);
+  }
+});
