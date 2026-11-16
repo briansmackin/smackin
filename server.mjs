@@ -7,7 +7,8 @@ import {fileURLToPath} from 'node:url';
 const AUTHORIZE='https://appcenter.intuit.com/connect/oauth2';
 const TOKEN='https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
 const REVOKE='https://developer.api.intuit.com/v2/oauth2/tokens/revoke';
-const REPORTS=new Set(['ProfitAndLoss','BalanceSheet','CashFlow']);
+const AGING_REPORTS=new Set(['AgedReceivables','AgedPayables']);
+const REPORTS=new Set(['ProfitAndLoss','BalanceSheet','CashFlow',...AGING_REPORTS]);
 const ENTITIES=new Set(['Account','Customer','Vendor','Invoice','Bill','Payment','BillPayment','Purchase','JournalEntry','SalesReceipt','CreditMemo']);
 const ROOT=fileURLToPath(new URL('.',import.meta.url));
 const htmlEscape=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -135,8 +136,17 @@ export async function createConnector(config,{fetchImpl=fetch,now=Date.now}={}){
   }
   function formHTML(action,csrf,label){return `<form method="post" action="${action}"><input type="hidden" name="csrf" value="${csrf}"><button type="submit">${label}</button></form>`;}
   function apiAccess(req){const h=req.headers.authorization || '';if(!h.startsWith('Bearer ') || !equal(h.slice(7),config.readKey))throw fault(401,'ERP authorization required.');}
-  function reportQuery(url){
+  function reportQuery(url,report){
     const q=new URLSearchParams();
+    if(AGING_REPORTS.has(report)){
+      for(const [k,v] of url.searchParams){
+        if(k!=='report_date' || q.has(k) || !/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v)) || new Date(v).toISOString().slice(0,10)!==v)throw fault(400,'Aging requires one valid report_date only.');
+        q.set(k,v);
+      }
+      if(!q.has('report_date'))throw fault(400,'Aging requires report_date.');
+      q.set('aging_method','Report_Date');q.set('aging_period','30');q.set('num_periods','4');
+      return q;
+    }
     for(const [k,v] of url.searchParams){
       if(['start_date','end_date'].includes(k) && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0,10)===v)q.set(k,v);
       else if(k==='accounting_method' && ['Cash','Accrual'].includes(v))q.set(k,v);
@@ -201,7 +211,7 @@ export async function createConnector(config,{fetchImpl=fetch,now=Date.now}={}){
         if(!configured())throw fault(503,'Connection configuration is incomplete.');
         let resource,params;
         if(path==='/api/company'){resource='companyinfo';params=new URLSearchParams();if(url.search)throw fault(400,'Unsupported parameter.');}
-        else if(path.startsWith('/api/reports/') && REPORTS.has(path.split('/')[3]) && path.split('/').length===4){resource=`reports/${path.split('/')[3]}`;params=reportQuery(url);}
+        else if(path.startsWith('/api/reports/') && REPORTS.has(path.split('/')[3]) && path.split('/').length===4){resource=`reports/${path.split('/')[3]}`;params=reportQuery(url,path.split('/')[3]);}
         else if(path.startsWith('/api/entities/') && ENTITIES.has(path.split('/')[3]) && path.split('/').length===4){
           for(const k of url.searchParams.keys())if(!['start','limit'].includes(k))throw fault(400,'Unsupported parameter.');
           const start=url.searchParams.get('start') || '1',limit=url.searchParams.get('limit') || '100';

@@ -67,6 +67,8 @@ Send `Authorization: Bearer <ERP_READ_KEY>` only over HTTPS to the connector. Th
 | `GET /api/reports/ProfitAndLoss` | P&L |
 | `GET /api/reports/BalanceSheet` | Balance sheet |
 | `GET /api/reports/CashFlow` | Cash flow |
+| `GET /api/reports/AgedReceivables?report_date=YYYY-MM-DD` | Official QBO receivables aging summary |
+| `GET /api/reports/AgedPayables?report_date=YYYY-MM-DD` | Official QBO payables aging summary |
 | `GET /api/entities/Invoice` | Invoices / receivables source |
 | `GET /api/entities/Bill` | Bills / payables source |
 | `GET /api/entities/Customer` | Customers |
@@ -79,7 +81,7 @@ Send `Authorization: Bearer <ERP_READ_KEY>` only over HTTPS to the connector. Th
 | `GET /api/entities/SalesReceipt` | Sales receipts |
 | `GET /api/entities/CreditMemo` | Customer credits |
 
-Reports accept only `start_date`, `end_date` (ISO dates), `accounting_method` (`Cash` or `Accrual`) and `summarize_column_by` (`Total`, `Month`, `Quarter`, `Year`). Report-specific combinations must be checked in the Intuit sandbox. Entity lists support `start` (1-based) and `limit` (1–1000); paginate until fewer than `limit` records return. Transaction date filters/incremental synchronization, normalized ERP tables, AR/AP aging calculations, retries with backoff and a recurring pull job are **not implemented** in this package.
+P&L, balance sheet and cash-flow reports accept only `start_date`, `end_date` (ISO dates), `accounting_method` (`Cash` or `Accrual`) and `summarize_column_by` (`Total`, `Month`, `Quarter`, `Year`). Aging summaries instead require exactly one real `report_date` in ISO format; the connector fixes `aging_method=Report_Date`, `aging_period=30` and `num_periods=4`. Other or duplicate aging parameters are rejected. These are upstream QBO summaries, not balances recalculated from current invoices or bills. Callers must validate the returned report name, date, currency, columns and completeness before displaying an aging snapshot; local tests prove routing/validation, not live QBO accounting parity. Entity lists support `start` (1-based) and `limit` (1–1000); paginate until fewer than `limit` records return. Transaction date filters/incremental synchronization, normalized ERP tables, locally calculated AR/AP aging, retries with backoff and a recurring pull job are **not implemented** in this package.
 
 Intuit's accounting OAuth scope is not intrinsically read-only. Read-only behavior is enforced by this service's GET allowlist. Possession of the raw Intuit tokens could permit broader actions; therefore tokens are never delivered to the ERP caller.
 
